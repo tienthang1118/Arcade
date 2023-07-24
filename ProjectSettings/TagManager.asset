@@ -7,6 +7,9 @@ TagManager:
   - Slash
   - HardSlash
   - Counter
+  - Wall
+  - Arrow
+  - Dash
   layers:
   - Default
   - TransparentFX

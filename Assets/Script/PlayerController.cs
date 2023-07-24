@@ -16,6 +16,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isPressJump;
     // [SerializeField] private bool isJumping;
 
+    //Dash
+    public float m_dashSpeed;
+    private bool isDashForward;
+
     //Ground check
     public Transform groundCheck;
     public float groundCheckRadius;
@@ -25,6 +29,7 @@ public class PlayerController : MonoBehaviour
     public GameObject slashCollider;
     public GameObject hardSlashCollider;
     public GameObject counterCollider;
+    public GameObject dashCollider;
 
     //Animator
     private Animator animator;
@@ -33,9 +38,10 @@ public class PlayerController : MonoBehaviour
     private string bLeft;
     private string bRight;
     private string bSlash;
-    private string bHardSlash;
-    private string bCounter;
+    private string bShoot;
+    private string bDash;
     private string bJump;
+    private string bDown;
 
     //
     public PlayerController enemy;
@@ -44,6 +50,10 @@ public class PlayerController : MonoBehaviour
     private float m_scaleX;
     public GameObject counterText;
     private bool isDamaged;
+    
+    //Shoot
+    public GameObject Arrow;
+    public GameObject ArrowSpawnPosition;
 
     //Skill cooldown
     public float m_slashCD;
@@ -52,18 +62,24 @@ public class PlayerController : MonoBehaviour
     private float m_slashCDPass;
     private float m_hardSlashCDPass;
     private float m_counterCDPass;
+    private float m_dashCDPass;
+    public float m_dashCD;
+    private float m_shootCDPass;
+    public float m_shootCD;
 
     //Audio
     public AudioClip soundAttack;
     public AudioClip soundCounter;
     public AudioClip soundDamage;
+    public AudioClip soundShoot;
+    public AudioClip soundDash;
     public AudioSource soundSource;
 
     // Start is called before the first frame update
     void Start()
     {
         m_scaleX = transform.localScale.x;
-        if(transform.localScale.x > 0){
+        if(gameObject.name == "Player1"){
             isPlayer1 = true;
         }
         else{
@@ -76,17 +92,19 @@ public class PlayerController : MonoBehaviour
             bLeft = "Move Left";
             bRight = "Move Right";
             bSlash = "Slash";
-            bHardSlash = "Hard Slash";
-            bCounter = "Counter";
+            bShoot = "Shoot";
+            bDash = "Dash";
             bJump = "Jump";
+            bDown = "Down";
         }
         else if(gameObject.name == "Player2"){
             bLeft = "Move Left 2";
             bRight = "Move Right 2";
             bSlash = "Slash 2";
-            bHardSlash = "Hard Slash 2";
-            bCounter = "Counter 2";
+            bShoot = "Shoot 2";
+            bDash = "Dash 2";
             bJump = "Jump 2";
+            bDown = "Down 2";
         }
     }
 
@@ -95,7 +113,9 @@ public class PlayerController : MonoBehaviour
     {
         GroundCheck();
         Movement();
-        ChangeDirection();
+        if(!animator.GetBool("isDash")){
+            ChangeDirection();
+        }
     }
     void ChangeDirection(){
         if(isPlayer1){
@@ -119,10 +139,14 @@ public class PlayerController : MonoBehaviour
         m_slashCDPass += Time.deltaTime;
         m_hardSlashCDPass += Time.deltaTime;
         m_counterCDPass += Time.deltaTime;
+        m_dashCDPass += Time.deltaTime;
+        m_shootCDPass += Time.deltaTime;
 
         m_moveDirection = Vector3.zero;
         //Jump
-        if(Input.GetButtonDown(bJump) && isTouchingGround && !animator.GetBool("isHurt"))
+        if(Input.GetButtonDown(bJump) && isTouchingGround 
+            && !animator.GetBool("isHurt") && !animator.GetBool("isDash")
+            && !animator.GetBool("isSlash") && !animator.GetBool("isHardSlash") && !animator.GetBool("isCounter") && !animator.GetBool("isShoot"))
         {
             isPressJump = true;
             m_jumpTime = 0;
@@ -138,27 +162,61 @@ public class PlayerController : MonoBehaviour
         }
 
         //Attack
-        if(Input.GetButtonDown(bSlash) && m_slashCDPass > m_slashCD)
+        //Slash
+        if(!Input.GetButton(bDown) && Input.GetButtonDown(bSlash) && m_slashCDPass > m_slashCD)
         {
             m_slashCDPass = 0;
             SetContinuousAttack();
             animator.SetBool("isSlash", true);
         }
-        if(Input.GetButtonDown(bHardSlash) && m_hardSlashCDPass > m_hardSlashCD)
+        //HardSlash
+        if(!Input.GetButton(bDown) && Input.GetButtonDown(bShoot) && m_hardSlashCDPass > m_hardSlashCD)
         {
             m_hardSlashCDPass = 0;
             SetContinuousAttack();
             animator.SetBool("isHardSlash", true);
         }
-        if(Input.GetButtonDown(bCounter) && m_counterCDPass > m_counterCD)
+        //Counter
+        if(Input.GetButton(bDown) && Input.GetButtonDown(bSlash) && m_counterCDPass > m_counterCD)
         {
             m_counterCDPass = 0;
             SetContinuousAttack();
             animator.SetBool("isCounter", true);
         }
+        //Shoot
+        if(Input.GetButton(bDown) && Input.GetButtonDown(bShoot) && m_shootCDPass > m_shootCD)
+        {
+            m_shootCDPass = 0;
+            animator.SetBool("isShoot", true);
+
+        }
+        //Dash
+        if(!Input.GetButton(bDown) && Input.GetButtonDown(bDash) && m_dashCDPass > m_dashCD 
+            && !animator.GetBool("isJump") && !animator.GetBool("isHurt"))
+        {
+            soundSource.PlayOneShot(soundDash);
+            animator.SetBool("isDash", true);
+            isDashForward = true;
+        }
+        if(Input.GetButton(bDown) && Input.GetButtonDown(bDash) && m_dashCDPass > m_dashCD 
+            && !animator.GetBool("isJump") && !animator.GetBool("isHurt"))
+        {
+            soundSource.PlayOneShot(soundDash);
+            animator.SetBool("isDash", true);
+            isDashForward = false;
+        }
+        if(animator.GetCurrentAnimatorStateInfo(0).IsName("Dash"))
+        {
+            if(transform.localScale.x>0){
+                transform.Translate(Vector3.right * m_dashSpeed * Time.deltaTime);
+            }
+            else{
+                transform.Translate(Vector3.left * m_dashSpeed * Time.deltaTime);
+            }
+        }
 
         //Move
-        if((Input.GetButton(bLeft) || Input.GetButton(bRight)) 
+        if(((Input.GetButton(bLeft) || Input.GetButton(bRight)) && !animator.GetBool("isDash") && !animator.GetBool("isShoot")) 
             && !animator.GetBool("isHurt") 
             && !animator.GetBool("isSlash") 
             && !animator.GetBool("isHardSlash")
@@ -191,19 +249,6 @@ public class PlayerController : MonoBehaviour
     {
         isTouchingGround = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
     }
-    void OnTriggerEnter2D(Collider2D other){
-        if(slashCollider.activeSelf && other.gameObject.CompareTag("HardSlash")
-           || hardSlashCollider.activeSelf && other.gameObject.CompareTag("Counter")
-           || counterCollider.activeSelf && other.gameObject.CompareTag("Slash"))
-        {
-            soundSource.PlayOneShot(soundCounter);
-            enemy.GetComponent<PlayerController>().TakeDamage(5);
-            StartCoroutine(DisplayCounterText());
-        }
-        else if(other.gameObject.CompareTag("Player")){
-            enemy.GetComponent<PlayerController>().TakeDamage(1);
-        }
-    }
     void AttackCollider()
     {
         if(animator.GetCurrentAnimatorStateInfo(0).IsName("Slash")){
@@ -214,6 +259,26 @@ public class PlayerController : MonoBehaviour
         }
         else if(animator.GetCurrentAnimatorStateInfo(0).IsName("Counter")){
             counterCollider.SetActive(true);
+        }
+        else if(animator.GetCurrentAnimatorStateInfo(0).IsName("Dash")){
+            dashCollider.SetActive(true);
+        }
+    }
+    void OnTriggerEnter2D(Collider2D other){
+        if((slashCollider.activeSelf && (other.gameObject.CompareTag("HardSlash") || other.gameObject.CompareTag("Dash")))
+            || (hardSlashCollider.activeSelf && (other.gameObject.CompareTag("Counter") || other.gameObject.CompareTag("Dash"))) 
+            || (counterCollider.activeSelf && (other.gameObject.CompareTag("Slash") || other.gameObject.CompareTag("Dash"))))
+        {
+            soundSource.PlayOneShot(soundCounter);
+            enemy.GetComponent<PlayerController>().TakeDamage(5);
+            StartCoroutine(DisplayCounterText());
+        }
+        else if(other.gameObject.CompareTag("Player")){
+            enemy.GetComponent<PlayerController>().TakeDamage(1);
+        }
+        if((slashCollider.activeSelf || hardSlashCollider.activeSelf || counterCollider.activeSelf) && other.gameObject.CompareTag("Arrow")){
+            soundSource.PlayOneShot(soundCounter);
+            ObjectPoolManager.ReturnObjectToPool(other.gameObject);
         }
     }
     void AnimationFinish(){
@@ -229,6 +294,21 @@ public class PlayerController : MonoBehaviour
             animator.SetBool("isCounter", false);   
             counterCollider.SetActive(false);
         }
+        else if(animator.GetCurrentAnimatorStateInfo(0).IsName("Dash")){
+            animator.SetBool("isDash", false);   
+            dashCollider.SetActive(false);
+        }
+        else if(animator.GetCurrentAnimatorStateInfo(0).IsName("Shoot")){
+            soundSource.PlayOneShot(soundShoot);
+            animator.SetBool("isShoot", false);
+            if(transform.localScale.x < 0){
+                ArrowSpawnPosition.transform.rotation = Quaternion.Euler(0, 0, 180);
+            }
+            else{
+                ArrowSpawnPosition.transform.rotation = Quaternion.Euler(0, 0, 0);
+            }
+            ObjectPoolManager.SpawnObject(Arrow, ArrowSpawnPosition.transform.position, ArrowSpawnPosition.transform.rotation);
+        }
         else if(animator.GetCurrentAnimatorStateInfo(0).IsName("Hurt")){
             if(m_healhPoint<=0 && !animator.GetBool("isDead"))
             {
@@ -239,25 +319,40 @@ public class PlayerController : MonoBehaviour
                 animator.SetBool("isHurt", false);
             }
         }
+        else if(animator.GetCurrentAnimatorStateInfo(0).IsName("Dash")){
+            animator.SetBool("isDash", false);   
+            // counterCollider.SetActive(false);
+        }
     }
     void AttackAnimationStart()
     {
-        soundSource.PlayOneShot(soundAttack);
+        if(animator.GetCurrentAnimatorStateInfo(0).IsName("Slash") || animator.GetCurrentAnimatorStateInfo(0).IsName("HardSash") || animator.GetCurrentAnimatorStateInfo(0).IsName("Counter")){
+            soundSource.PlayOneShot(soundAttack);
+        }
         if(animator.GetBool("isContinuousAttack"))
         {
             animator.SetBool("isContinuousAttack", false);
         }
+        if(animator.GetCurrentAnimatorStateInfo(0).IsName("Dash"))
+        {
+            m_dashCDPass = 0;
+            if(!isDashForward){
+                transform.localScale = new Vector3(-transform.localScale.x,transform.localScale.y,transform.localScale.z);
+            }
+        }
     }
-    void TakeDamage(int damage)
+    public void TakeDamage(int damage)
     {
         soundSource.PlayOneShot(soundDamage);
         animator.SetBool("isHurt", true);
         animator.SetBool("isSlash", false);
         animator.SetBool("isHardSlash", false);
         animator.SetBool("isCounter", false);
+        animator.SetBool("isDash", false);
         slashCollider.SetActive(false);
         hardSlashCollider.SetActive(false);
         counterCollider.SetActive(false);
+        dashCollider.SetActive(false);
         m_healhPoint -= damage;
     }
     IEnumerator DisplayCounterText()
